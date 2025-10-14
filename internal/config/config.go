@@ -1,51 +1,32 @@
 package config
 
 import (
-	"fmt"
+	"encoding/json"
 	"os"
-	"strconv"
 )
 
 type Config struct {
-	SSHUser string
-	SSHHost string
-	SSHPort int
-	SSHKey  string
+	Theme string `json:"theme"` // "dark" или "light"
 }
 
-func LoadConfig() (*Config, error) {
-	sshUser := os.Getenv("PM_SSH_USER")
-	if sshUser == "" {
-		return nil, fmt.Errorf("environment variable PM_SSH_USER is not set")
-	}
+const configFile = "config.json"
 
-	sshHost := os.Getenv("PM_SSH_HOST")
-	if sshHost == "" {
-		return nil, fmt.Errorf("environment variable PM_SSH_HOST is not set")
-	}
-
-	sshPortStr := os.Getenv("PM_SSH_PORT")
-	if sshPortStr == "" {
-		sshPortStr = "22"
-	}
-	sshPort, err := strconv.Atoi(sshPortStr)
+func Load() Config {
+	var cfg Config
+	data, err := os.ReadFile(configFile)
 	if err != nil {
-		return nil, fmt.Errorf("invalid value for PM_SSH_PORT: %w", err)
+		return Config{Theme: "dark"}
 	}
-
-	if sshPort < 1 || sshPort > 65535 {
-		return nil, fmt.Errorf("PM_SSH_PORT must be between 1 and 65535")
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		return Config{Theme: "dark"}
 	}
+	return cfg
+}
 
-	sshKey := os.Getenv("PM_SSH_KEY")
-	if sshKey == "" {
-		return nil, fmt.Errorf("environment variable PM_SSH_KEY is not set")
+func Save(cfg Config) error {
+	data, err := json.MarshalIndent(cfg, "", "  ")
+	if err != nil {
+		return err
 	}
-
-	return &Config{
-		SSHUser: sshUser,
-		SSHHost: sshHost,
-		SSHPort: sshPort,
-		SSHKey:  sshKey,
-	}, nil
+	return os.WriteFile(configFile, data, 0644)
 }
