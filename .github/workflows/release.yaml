@@ -6,13 +6,19 @@ on:
 
 jobs:
   build:
-    name: Build for ${{ matrix.platform }}
-    # Используем fyne-cross-action для простоты и надежности
+    name: Build for ${{ matrix.os }}/${{ matrix.arch }}
     runs-on: ubuntu-latest
     
+    # ИСПРАВЛЕНИЕ: Матрица теперь содержит отдельные ОС и архитектуры
     strategy:
       matrix:
-        platform: [windows/amd64, darwin/amd64, darwin/arm64]
+        include:
+          - os: windows
+            arch: amd64
+          - os: darwin
+            arch: amd64
+          - os: darwin
+            arch: arm64
 
     steps:
       - name: Checkout code
@@ -24,39 +30,43 @@ jobs:
           go-version: '1.21'
       
       - name: Setup fyne-cross
-        # fyne-cross необходим для стабильной кросс-компиляции
+        # Устанавливаем fyne-cross и добавляем его в PATH
         run: |
           go install github.com/fyne-io/fyne-cross@latest
           echo "$HOME/go/bin" >> $GITHUB_PATH
 
       - name: Run Fyne-Cross Build
-        # fyne-cross использует Docker для сборки, что очень надежно
+        # ИСПРАВЛЕНИЕ ЗДЕСЬ: Используем команду ОС и флаг -arch
         run: |
-          fyne-cross ${{ matrix.platform }} \
+          fyne-cross ${{ matrix.os }} \
+            -arch ${{ matrix.arch }} \
             --icon icon.png \
             --app-id com.report.tracker \
             --name ReportTracker \
             --output ReportTracker
-            
+
       - name: Prepare Artifact Names
         id: prepare_artifacts
         run: |
-          # Fyne-cross сохраняет файлы в fyne-cross/bin/[platform]/[name]
-          case "${{ matrix.platform }}" in
-            "windows/amd64") 
-              echo "SOURCE_PATH=fyne-cross/bin/windows-amd64/ReportTracker.exe" >> $GITHUB_ENV
-              echo "ARTIFACT_NAME=ReportTracker_Windows_x64.exe" >> $GITHUB_ENV
-              ;;
-            "darwin/amd64")
-              echo "SOURCE_PATH=fyne-cross/bin/darwin-amd64/ReportTracker.app.tar.gz" >> $GITHUB_ENV
-              echo "ARTIFACT_NAME=ReportTracker_macOS_Intel.tar.gz" >> $GITHUB_ENV
-              ;;
-            "darwin/arm64")
-              echo "SOURCE_PATH=fyne-cross/bin/darwin-arm64/ReportTracker.app.tar.gz" >> $GITHUB_ENV
-              echo "ARTIFACT_NAME=ReportTracker_macOS_M1.tar.gz" >> $GITHUB_ENV
-              ;;
-          esac
-
+          # Fyne-cross сохраняет файлы в fyne-cross/bin/[platform]-[arch]/
+          OS_ARCH="${{ matrix.os }}-${{ matrix.arch }}"
+          
+          if [[ "${{ matrix.os }}" == "windows" ]]; then
+              SOURCE_PATH="fyne-cross/bin/${OS_ARCH}/ReportTracker.exe"
+              ARTIFACT_NAME="ReportTracker_Windows_x64.exe"
+          elif [[ "${{ matrix.os }}" == "darwin" ]]; then
+              SOURCE_PATH="fyne-cross/bin/${OS_ARCH}/ReportTracker.app.tar.gz"
+              
+              if [[ "${{ matrix.arch }}" == "amd64" ]]; then
+                  ARTIFACT_NAME="ReportTracker_macOS_Intel.tar.gz"
+              else
+                  ARTIFACT_NAME="ReportTracker_macOS_M1.tar.gz"
+              fi
+          fi
+          
+          echo "SOURCE_PATH=${SOURCE_PATH}" >> $GITHUB_ENV
+          echo "ARTIFACT_NAME=${ARTIFACT_NAME}" >> $GITHUB_ENV
+          
       - name: Copy Artifact to Root
         # Перемещаем файл в корень для удобной загрузки
         run: mv ${{ env.SOURCE_PATH }} ${{ env.ARTIFACT_NAME }}
