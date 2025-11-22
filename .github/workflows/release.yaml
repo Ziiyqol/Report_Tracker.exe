@@ -9,7 +9,6 @@ jobs:
     name: Build for ${{ matrix.os }}/${{ matrix.arch }}
     runs-on: ubuntu-latest
     
-    # ИСПРАВЛЕНИЕ: Матрица теперь содержит отдельные ОС и архитектуры
     strategy:
       matrix:
         include:
@@ -40,7 +39,7 @@ jobs:
         run: |
           fyne-cross ${{ matrix.os }} \
             -arch ${{ matrix.arch }} \
-            --icon icon.png \
+            --icon cmd/icon.png \
             --app-id com.report.tracker \
             --name ReportTracker \
             --output ReportTracker
