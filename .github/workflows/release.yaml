@@ -22,11 +22,11 @@ jobs:
           echo "$HOME/go/bin" >> $GITHUB_PATH
       - name: Build Windows Binary
         run: |
-          $HOME/go/bin/fyne-cross windows -arch=amd64 \
-            --icon cmd/icon.png \
-            --appID com.report.tracker \
-            --name ReportTracker \
-            --output ReportTracker \
+          $HOME/go/bin/fyne-cross windows -arch amd64 \
+            -icon cmd/icon.png \
+            -app-id com.report.tracker \
+            -name ReportTracker \
+            -output ReportTracker \
             ./cmd
       - name: Prepare Artifact
         run: |
@@ -56,11 +56,11 @@ jobs:
           export CGO_ENABLED=1
           export GOOS=darwin
           export GOARCH=amd64
-          $HOME/go/bin/fyne package --os darwin \
-            --sourceDir cmd \
-            --icon cmd/icon.png \
-            --appID com.report.tracker \
-            --name ReportTracker
+          $HOME/go/bin/fyne package -os darwin \
+            -sourceDir cmd \
+            -icon icon.png \
+            -appID com.report.tracker \
+            -name ReportTracker
           mv ReportTracker.app ReportTracker_Intel.app
           tar -czf ReportTracker_macOS_Intel.tar.gz ReportTracker_Intel.app
       # --- Сборка для Apple Silicon (arm64/M1) ---
@@ -69,11 +69,11 @@ jobs:
           export CGO_ENABLED=1
           export GOOS=darwin
           export GOARCH=arm64
-          $HOME/go/bin/fyne package --os darwin \
-            --sourceDir cmd \
-            --icon cmd/icon.png \
-            --appID com.report.tracker \
-            --name ReportTracker
+          $HOME/go/bin/fyne package -os darwin \
+            -sourceDir cmd \
+            -icon icon.png \
+            -appID com.report.tracker \
+            -name ReportTracker
           mv ReportTracker.app ReportTracker_M1.app
           tar -czf ReportTracker_macOS_M1.tar.gz ReportTracker_M1.app
       - name: Upload Release Assets
