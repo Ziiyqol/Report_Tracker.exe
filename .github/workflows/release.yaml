@@ -5,62 +5,14 @@ on:
     types: [created]
 
 jobs:
-  # Задача 1: Сборка macOS Intel (требует macOS-машины из-за Xcode)
-  build_darwin_intel:
-    name: Build macOS Intel (amd64)
-    # ИЗМЕНЕНИЕ: Используем macOS-машину
-    runs-on: macos-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      
-      - name: Set up Go
-        uses: actions/setup-go@v4
-        with:
-          go-version: '1.21'
-          
-      - name: Setup fyne-cross
-        run: go install github.com/fyne-io/fyne-cross@latest
-        
-      - name: Build and Package Darwin Intel
-        # Компилируем напрямую, так как Xcode доступен
-        run: |
-          $HOME/go/bin/fyne-cross darwin \
-            -arch amd64 \
-            --icon cmd/icon.png \
-            --app-id com.report.tracker \
-            --name ReportTracker
-          
-      - name: Prepare Artifact Names
-        run: |
-          SOURCE_PATH="fyne-cross/bin/darwin-amd64/ReportTracker.app.tar.gz"
-          ARTIFACT_NAME="ReportTracker_macOS_Intel.tar.gz"
-          echo "SOURCE_PATH=${SOURCE_PATH}" >> $GITHUB_ENV
-          echo "ARTIFACT_NAME=${ARTIFACT_NAME}" >> $GITHUB_ENV
-          
-      - name: Copy Artifact to Root
-        run: mv ${{ env.SOURCE_PATH }} ${{ env.ARTIFACT_NAME }}
-
-      - name: Upload Release Asset
-        uses: softprops/action-gh-release@v1
-        with:
-          files: ${{ env.ARTIFACT_NAME }}
-
-
-  # Задача 2: Сборка Windows и macOS M1 (может использовать Docker на Ubuntu)
-  build_cross:
-    name: Build Cross-Platform (${{ matrix.os }}/${{ matrix.arch }})
+  # ------------------------------------------------------------------
+  # ЗАДАЧА 1: Сборка для Windows
+  # Запускается на Linux, использует fyne-cross (Docker)
+  # Это самый надежный способ собрать .exe
+  # ------------------------------------------------------------------
+  build_windows:
+    name: Build Windows
     runs-on: ubuntu-latest
-    
-    # ИЗМЕНЕНИЕ: Исключаем Intel, так как он собран выше.
-    strategy:
-      matrix:
-        include:
-          - os: windows
-            arch: amd64
-          - os: darwin # Только M1/ARM64
-            arch: arm64 
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -69,43 +21,90 @@ jobs:
         uses: actions/setup-go@v4
         with:
           go-version: '1.21'
-      
-      - name: Setup fyne-cross
+
+      - name: Install fyne-cross
         run: |
           go install github.com/fyne-io/fyne-cross@latest
           echo "$HOME/go/bin" >> $GITHUB_PATH
 
-      - name: Run Fyne-Cross Build
-        # fyne-cross может собирать Windows и M1/ARM64 без Xcode
+      - name: Build Windows Binary
+        # Собираем Windows версию. Иконка в cmd/icon.png
         run: |
-          fyne-cross ${{ matrix.os }} \
-            -arch ${{ matrix.arch }} \
+          fyne-cross windows -arch amd64 \
             --icon cmd/icon.png \
             --app-id com.report.tracker \
             --name ReportTracker \
             --output ReportTracker
 
-      - name: Prepare Artifact Names
-        id: prepare_artifacts
+      - name: Prepare Artifact
         run: |
-          OS_ARCH="${{ matrix.os }}-${{ matrix.arch }}"
-          
-          if [[ "${{ matrix.os }}" == "windows" ]]; then
-              SOURCE_PATH="fyne-cross/bin/${OS_ARCH}/ReportTracker.exe"
-              ARTIFACT_NAME="ReportTracker_Windows_x64.exe"
-          elif [[ "${{ matrix.os }}" == "darwin" ]]; then
-              SOURCE_PATH="fyne-cross/bin/${OS_ARCH}/ReportTracker.app.tar.gz"
-              ARTIFACT_NAME="ReportTracker_macOS_M1.tar.gz"
-          fi
-          
-          echo "SOURCE_PATH=${SOURCE_PATH}" >> $GITHUB_ENV
-          echo "ARTIFACT_NAME=${ARTIFACT_NAME}" >> $GITHUB_ENV
-          
-      - name: Copy Artifact to Root
-        run: mv ${{ env.SOURCE_PATH }} ${{ env.ARTIFACT_NAME }}
+          # Перемещаем готовый exe в корень и даем нормальное имя
+          mv fyne-cross/bin/windows-amd64/ReportTracker.exe ReportTracker_Windows_x64.exe
 
       - name: Upload Release Asset
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
         with:
-          files: ${{ env.ARTIFACT_NAME }}
+          files: ReportTracker_Windows_x64.exe
+
+  # ------------------------------------------------------------------
+  # ЗАДАЧА 2: Сборка для macOS (Intel и M1)
+  # Запускается на настоящем macOS.
+  # НЕ использует fyne-cross. Использует нативный Fyne CLI.
+  # ------------------------------------------------------------------
+  build_macos:
+    name: Build macOS
+    runs-on: macos-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+
+      - name: Install Fyne CLI
+        # Устанавливаем официальную утилиту Fyne v2
+        run: go install fyne.io/fyne/v2/cmd/fyne@latest
+
+      # --- Сборка для Intel (amd64) ---
+      - name: Build macOS Intel
+        run: |
+          # Устанавливаем переменные окружения для целевой архитектуры
+          export CGO_ENABLED=1
+          export GOOS=darwin
+          export GOARCH=amd64
+          
+          # Собираем пакет .app
+          fyne package -os darwin -icon cmd/icon.png --appID com.report.tracker --name ReportTracker
+          
+          # Переименовываем, чтобы не было конфликтов
+          mv ReportTracker.app ReportTracker_Intel.app
+          
+          # Архивируем в tar.gz (обязательно для macOS приложений)
+          tar -czf ReportTracker_macOS_Intel.tar.gz ReportTracker_Intel.app
+
+      # --- Сборка для Apple Silicon (arm64/M1) ---
+      - name: Build macOS Apple Silicon
+        run: |
+          export CGO_ENABLED=1
+          export GOOS=darwin
+          export GOARCH=arm64
+          
+          # Собираем пакет .app
+          fyne package -os darwin -icon cmd/icon.png --appID com.report.tracker --name ReportTracker
+          
+          # Переименовываем
+          mv ReportTracker.app ReportTracker_M1.app
+          
+          # Архивируем
+          tar -czf ReportTracker_macOS_M1.tar.gz ReportTracker_M1.app
+
+      - name: Upload Release Assets
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: |
+            ReportTracker_macOS_Intel.tar.gz
+            ReportTracker_macOS_M1.tar.gz
