@@ -23,14 +23,13 @@ jobs:
           go install github.com/fyne-io/fyne-cross@latest
           echo "$HOME/go/bin" >> $GITHUB_PATH
       - name: Build Windows Binary
-        # Используем полную форму флагов и убедимся, что пакет './cmd' стоит в конце
         run: |
           $HOME/go/bin/fyne-cross windows --arch amd64 \
             --icon cmd/icon.png \
-            --app-id com.report.tracker \  # <--- КРИТИЧЕСКИЙ ФЛАГ
+            --app-id com.report.tracker \
             --name ReportTracker \
             --output ReportTracker \
-            ./cmd  # <--- Пакет для компиляции
+            -dir cmd # <--- ФИНАЛЬНОЕ ИСПРАВЛЕНИЕ: Используем -dir cmd
       - name: Prepare Artifact
         run: |
           mv fyne-cross/bin/windows-amd64/ReportTracker.exe ReportTracker_Windows_x64.exe
@@ -53,41 +52,33 @@ jobs:
         with:
           go-version: '1.21'
       - name: Install Fyne CLI
-        # Используем полный путь, чтобы избежать ошибки PATH
         run: go install fyne.io/fyne/v2/cmd/fyne@latest
 
       # --- Сборка для Intel (amd64) ---
       - name: 📦 Package macOS Intel (amd64)
         run: |
-          # Устанавливаем переменные окружения
           export CGO_ENABLED=1
           export GOOS=darwin
           export GOARCH=amd64
-          
-          # Используем полный путь к исполняемому файлу fyne и полные названия флагов
           $HOME/go/bin/fyne package --os darwin \
-            --sourceDir cmd \ # <--- ФЛАГ ДЛЯ ПАПКИ С КОДОМ
-            --icon cmd/icon.png \ # <--- ФЛАГ ДЛЯ ИКОНКИ ОТНОСИТЕЛЬНО КОРНЯ
+            --sourceDir cmd \
+            --icon cmd/icon.png \
             --appID com.report.tracker \
             --name ReportTracker
-            
           mv ReportTracker.app ReportTracker_Intel.app
           tar -czf ReportTracker_macOS_Intel.tar.gz ReportTracker_Intel.app
 
       # --- Сборка для Apple Silicon (arm64/M1) ---
       - name: 📦 Package macOS Apple Silicon (arm64)
         run: |
-          # Устанавливаем переменные окружения
           export CGO_ENABLED=1
           export GOOS=darwin
           export GOARCH=arm64
-          
           $HOME/go/bin/fyne package --os darwin \
-            --sourceDir cmd \ # <--- ФЛАГ ДЛЯ ПАПКИ С КОДОМ
-            --icon cmd/icon.png \ # <--- ФЛАГ ДЛЯ ИКОНКИ ОТНОСИТЕЛЬНО КОРНЯ
+            --sourceDir cmd \
+            --icon cmd/icon.png \
             --appID com.report.tracker \
             --name ReportTracker
-            
           mv ReportTracker.app ReportTracker_M1.app
           tar -czf ReportTracker_macOS_M1.tar.gz ReportTracker_M1.app
 
