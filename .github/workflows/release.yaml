@@ -6,20 +6,11 @@ on:
 
 jobs:
   # ------------------------------------------------------------------
-<<<<<<< HEAD
   # JOB 1: Сборка для Windows
   # Использует fyne-cross на Linux-машине (самый стабильный метод для .exe)
   # ------------------------------------------------------------------
   build_windows:
     name: 🔨 Build Windows (x64)
-=======
-  # ЗАДАЧА 1: Сборка для Windows
-  # Запускается на Linux, использует fyne-cross (Docker)
-  # Это самый надежный способ собрать .exe
-  # ------------------------------------------------------------------
-  build_windows:
-    name: Build Windows
->>>>>>> ded32fcbdf439059e5e1491c61456ff38952a428
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -28,72 +19,39 @@ jobs:
         uses: actions/setup-go@v4
         with:
           go-version: '1.21'
-<<<<<<< HEAD
-=======
-
->>>>>>> ded32fcbdf439059e5e1491c61456ff38952a428
       - name: Install fyne-cross
         run: |
           go install github.com/fyne-io/fyne-cross@latest
           echo "$HOME/go/bin" >> $GITHUB_PATH
-<<<<<<< HEAD
       - name: Build Windows Binary
-=======
-
-      - name: Build Windows Binary
-        # Собираем Windows версию. Иконка в cmd/icon.png
->>>>>>> ded32fcbdf439059e5e1491c61456ff38952a428
         run: |
           fyne-cross windows -arch amd64 \
             --icon cmd/icon.png \
             --app-id com.report.tracker \
             --name ReportTracker \
             --output ReportTracker
-<<<<<<< HEAD
       - name: Prepare Artifact
         run: |
           mv fyne-cross/bin/windows-amd64/ReportTracker.exe ReportTracker_Windows_x64.exe
-=======
-
-      - name: Prepare Artifact
-        run: |
-          # Перемещаем готовый exe в корень и даем нормальное имя
-          mv fyne-cross/bin/windows-amd64/ReportTracker.exe ReportTracker_Windows_x64.exe
-
->>>>>>> ded32fcbdf439059e5e1491c61456ff38952a428
       - name: Upload Release Asset
         uses: softprops/action-gh-release@v1
         with:
           files: ReportTracker_Windows_x64.exe
 
   # ------------------------------------------------------------------
-<<<<<<< HEAD
   # JOB 2: Сборка для macOS (Intel и M1/ARM64)
   # Использует нативный Fyne CLI на macOS-машине (обходит проблемы с SDK и Docker)
   # ------------------------------------------------------------------
   build_macos:
     name: 🍎 Build macOS (Intel & M1)
-=======
-  # ЗАДАЧА 2: Сборка для macOS (Intel и M1)
-  # Запускается на настоящем macOS.
-  # НЕ использует fyne-cross. Использует нативный Fyne CLI.
-  # ------------------------------------------------------------------
-  build_macos:
-    name: Build macOS
->>>>>>> ded32fcbdf439059e5e1491c61456ff38952a428
     runs-on: macos-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-<<<<<<< HEAD
-=======
-
->>>>>>> ded32fcbdf439059e5e1491c61456ff38952a428
       - name: Set up Go
         uses: actions/setup-go@v4
         with:
           go-version: '1.21'
-<<<<<<< HEAD
       - name: Install Fyne CLI
         # Используем fyne package, который требует установленный Xcode (есть на macos-latest)
         run: go install fyne.io/fyne/v2/cmd/fyne@latest
@@ -111,57 +69,16 @@ jobs:
 
       # --- Сборка для Apple Silicon (arm64/M1) ---
       - name: 📦 Package macOS Apple Silicon (arm64)
-=======
-
-      - name: Install Fyne CLI
-        # Устанавливаем официальную утилиту Fyne v2
-        run: go install fyne.io/fyne/v2/cmd/fyne@latest
-
-      # --- Сборка для Intel (amd64) ---
-      - name: Build macOS Intel
-        run: |
-          # Устанавливаем переменные окружения для целевой архитектуры
-          export CGO_ENABLED=1
-          export GOOS=darwin
-          export GOARCH=amd64
-          
-          # Собираем пакет .app
-          fyne package -os darwin -icon cmd/icon.png --appID com.report.tracker --name ReportTracker
-          
-          # Переименовываем, чтобы не было конфликтов
-          mv ReportTracker.app ReportTracker_Intel.app
-          
-          # Архивируем в tar.gz (обязательно для macOS приложений)
-          tar -czf ReportTracker_macOS_Intel.tar.gz ReportTracker_Intel.app
-
-      # --- Сборка для Apple Silicon (arm64/M1) ---
-      - name: Build macOS Apple Silicon
->>>>>>> ded32fcbdf439059e5e1491c61456ff38952a428
         run: |
           export CGO_ENABLED=1
           export GOOS=darwin
           export GOARCH=arm64
-<<<<<<< HEAD
           $HOME/go/bin/fyne package -os darwin -icon cmd/icon.png --appID com.report.tracker --name ReportTracker
           mv ReportTracker.app ReportTracker_M1.app
-=======
-          
-          # Собираем пакет .app
-          fyne package -os darwin -icon cmd/icon.png --appID com.report.tracker --name ReportTracker
-          
-          # Переименовываем
-          mv ReportTracker.app ReportTracker_M1.app
-          
-          # Архивируем
->>>>>>> ded32fcbdf439059e5e1491c61456ff38952a428
           tar -czf ReportTracker_macOS_M1.tar.gz ReportTracker_M1.app
 
       - name: Upload Release Assets
         uses: softprops/action-gh-release@v1
-<<<<<<< HEAD
-=======
-        if: startsWith(github.ref, 'refs/tags/')
->>>>>>> ded32fcbdf439059e5e1491c61456ff38952a428
         with:
           files: |
             ReportTracker_macOS_Intel.tar.gz
