@@ -3,3 +3,8 @@
 .exe
 config.yaml
 config.json
+report.exe
+report
+*.txt
+*.json
+fyne-cross/
