@@ -5,6 +5,28 @@ on:
     types: [created]
 
 jobs:
+
+prepare_darwin:
+    name: Prepare Darwin SDK
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup fyne-cross
+        run: |
+          go install github.com/fyne-io/fyne-cross@latest
+          echo "$HOME/go/bin" >> $GITHUB_PATH
+          
+      - name: Extract Darwin SDK
+        # Эта команда скачает необходимый SDK в Docker-образ
+        # Это может занять 5-10 минут!
+        run: fyne-cross darwin-sdk-extract
+        
+      - name: Clean up
+        # Удаляем ненужные файлы, чтобы не хранить их в репозитории
+        run: rm -f *.dmg
+        
   build:
     name: Build for ${{ matrix.os }}/${{ matrix.arch }}
     runs-on: ubuntu-latest
