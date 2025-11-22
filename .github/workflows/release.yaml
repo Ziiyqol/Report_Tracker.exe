@@ -1,4 +1,8 @@
 name: Build and Release
+
+permissions:
+  contents: write
+
 on:
   release:
     types: [created]
@@ -26,11 +30,10 @@ jobs:
             -icon cmd/icon.png \
             -app-id com.report.tracker \
             -name ReportTracker \
-            -output ReportTracker \
             ./cmd
       - name: Prepare Artifact
         run: |
-          mv fyne-cross/dist/windows-amd64/ReportTracker.exe ReportTracker_Windows_x64.exe
+          mv fyne-cross/bin/windows-amd64/ReportTracker.exe ReportTracker_Windows_x64.exe
       - name: Upload Release Asset
         uses: softprops/action-gh-release@v1
         with:
