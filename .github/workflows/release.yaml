@@ -6,23 +6,13 @@ on:
 
 jobs:
   build:
-    name: Build for ${{ matrix.os }}
+    name: Build for ${{ matrix.platform }}
+    # Используем fyne-cross-action для простоты и надежности
     runs-on: ubuntu-latest
+    
     strategy:
       matrix:
-        include:
-          - os: windows
-            goos: windows
-            goarch: amd64
-            ext: .exe
-          - os: darwin
-            goos: darwin
-            goarch: amd64 # Intel Mac
-            ext: .app.tar.gz # Fyne упакует это сам
-          - os: darwin_arm64
-            goos: darwin
-            goarch: arm64 # M1/M2 Mac
-            ext: .app.tar.gz
+        platform: [windows/amd64, darwin/amd64, darwin/arm64]
 
     steps:
       - name: Checkout code
@@ -32,39 +22,47 @@ jobs:
         uses: actions/setup-go@v4
         with:
           go-version: '1.21'
-
-      - name: Install Fyne CLI
-        run: go install fyne.io/fyne/v2/cmd/fyne@latest
-
-      - name: Install dependencies
-        # Нужно для Linux-воркера, который собирает приложение (графические библиотеки)
+      
+      - name: Setup fyne-cross
+        # fyne-cross необходим для стабильной кросс-компиляции
         run: |
-          sudo apt-get update
-          sudo apt-get install -y libgl1-mesa-dev xorg-dev
+          go install github.com/fyne-io/fyne-cross@latest
+          echo "$HOME/go/bin" >> $GITHUB_PATH
 
-      - name: Build Windows
-        if: matrix.os == 'windows'
+      - name: Run Fyne-Cross Build
+        # fyne-cross использует Docker для сборки, что очень надежно
         run: |
-          fyne package -os windows -icon icon.png --appID com.report.tracker
-          mv report.exe ReportTracker_Windows.exe
+          fyne-cross ${{ matrix.platform }} \
+            --icon icon.png \
+            --app-id com.report.tracker \
+            --name ReportTracker \
+            --output ReportTracker
+            
+      - name: Prepare Artifact Names
+        id: prepare_artifacts
+        run: |
+          # Fyne-cross сохраняет файлы в fyne-cross/bin/[platform]/[name]
+          case "${{ matrix.platform }}" in
+            "windows/amd64") 
+              echo "SOURCE_PATH=fyne-cross/bin/windows-amd64/ReportTracker.exe" >> $GITHUB_ENV
+              echo "ARTIFACT_NAME=ReportTracker_Windows_x64.exe" >> $GITHUB_ENV
+              ;;
+            "darwin/amd64")
+              echo "SOURCE_PATH=fyne-cross/bin/darwin-amd64/ReportTracker.app.tar.gz" >> $GITHUB_ENV
+              echo "ARTIFACT_NAME=ReportTracker_macOS_Intel.tar.gz" >> $GITHUB_ENV
+              ;;
+            "darwin/arm64")
+              echo "SOURCE_PATH=fyne-cross/bin/darwin-arm64/ReportTracker.app.tar.gz" >> $GITHUB_ENV
+              echo "ARTIFACT_NAME=ReportTracker_macOS_M1.tar.gz" >> $GITHUB_ENV
+              ;;
+          esac
 
-      - name: Build macOS (Intel)
-        if: matrix.os == 'darwin'
-        run: |
-          fyne package -os darwin -icon icon.png --appID com.report.tracker
-          tar -czf ReportTracker_macOS_Intel.tar.gz report.app
-
-      - name: Build macOS (Apple Silicon)
-        if: matrix.os == 'darwin_arm64'
-        run: |
-          fyne package -os darwin -arch arm64 -icon icon.png --appID com.report.tracker
-          tar -czf ReportTracker_macOS_M1.tar.gz report.app
+      - name: Copy Artifact to Root
+        # Перемещаем файл в корень для удобной загрузки
+        run: mv ${{ env.SOURCE_PATH }} ${{ env.ARTIFACT_NAME }}
 
       - name: Upload Release Asset
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
         with:
-          files: |
-            ReportTracker_Windows.exe
-            ReportTracker_macOS_Intel.tar.gz
-            ReportTracker_macOS_M1.tar.gz
+          files: ${{ env.ARTIFACT_NAME }}
