@@ -5,17 +5,18 @@ import (
 	"os"
 )
 
+const configFile = "config.json"
+
 type Config struct {
 	Theme string `json:"theme"` // "dark" или "light"
 }
 
-const configFile = "config.json"
-
+// Load загружает конфиг или возвращает дефолтный
 func Load() Config {
 	var cfg Config
 	data, err := os.ReadFile(configFile)
 	if err != nil {
-		return Config{Theme: "dark"}
+		return Config{Theme: "dark"} // Дефолтная тема
 	}
 	if err := json.Unmarshal(data, &cfg); err != nil {
 		return Config{Theme: "dark"}
@@ -23,6 +24,7 @@ func Load() Config {
 	return cfg
 }
 
+// Save сохраняет конфиг
 func Save(cfg Config) error {
 	data, err := json.MarshalIndent(cfg, "", "  ")
 	if err != nil {

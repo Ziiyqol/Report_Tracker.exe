@@ -12,42 +12,31 @@ import (
 	"fyne.io/fyne/v2/theme"
 )
 
-// Run запускает приложение.
 func Run() {
-	// Создаём fyne приложение с уникальным ID
 	a := fyneApp.NewWithID("report_app")
-
-	// Загружаем конфигурацию (тема)
 	cfg := config.Load()
 
-	// Устанавливаем тему из конфига
 	if cfg.Theme == "light" {
-		a.Settings().SetTheme(theme.LightTheme())
+		a.Settings().SetTheme(ui.NewForcedTheme(theme.VariantLight))
 	} else {
-		a.Settings().SetTheme(theme.DarkTheme())
+		a.Settings().SetTheme(ui.NewForcedTheme(theme.VariantDark))
 	}
 
-	// Создаём окно
-	w := a.NewWindow("Report Tracker v1.0")
+	w := a.NewWindow("Report Tracker v1.1")
 
-	// Попытка загрузить иконку
+	// Загрузка иконки (без изменений)
 	iconData, err := os.ReadFile("icon.png")
 	if err == nil {
 		w.SetIcon(fyne.NewStaticResource("icon.png", iconData))
 	}
 
-	// Создаём хранилище и сервис
 	store := storage.NewFileStorage()
-	service := service.NewStatsService(store)
+	statsService := services.NewStatsService(store)
 
-	// Создаём UI
-	content := ui.NewMainWindow(w, service, a, &cfg)
+	content := ui.NewMainWindow(w, statsService, a, &cfg)
 	w.SetContent(content)
 
-	// Размер окна и центрирование
 	w.Resize(ui.DefaultWindowSize())
 	w.CenterOnScreen()
-
-	// Запуск приложения
 	w.ShowAndRun()
 }

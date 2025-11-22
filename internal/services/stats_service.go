@@ -1,43 +1,86 @@
-package service
+package services
 
 import (
 	"fmt"
 	"os"
+	"report/internal/models"
+	"report/internal/storage"
 )
 
-type Stats struct {
-	ProcessedOld int
-	ProcessedNew int
-	Recorded     int
-	Thinking     int
-	Rejected     int
-	NoAnswer     int
-}
-
 type StatsService struct {
-	stats   Stats
-	history []string
+	state   models.State
+	history []models.HistoryItem
+	storage storage.Storage
 }
 
-func NewStatsService(_ interface{}) *StatsService {
-	return &StatsService{}
+func NewStatsService(store storage.Storage) *StatsService {
+	// При запуске загружаем сохраненные данные
+	existingState := store.Load()
+	return &StatsService{
+		state:   existingState,
+		storage: store,
+		history: make([]models.HistoryItem, 0),
+	}
 }
 
+// GetStatsText формирует текст для UI
 func (s *StatsService) GetStatsText() string {
-	total := s.stats.ProcessedOld + s.stats.ProcessedNew
+	total := s.state.ProcessedOld + s.state.ProcessedNew
 	return fmt.Sprintf(
-		"Обработано %d (старых %d, новых %d)\nЗаписано %d\nДумают %d\nНе подходят %d\nНе дозвонился %d",
-		total, s.stats.ProcessedOld, s.stats.ProcessedNew,
-		s.stats.Recorded, s.stats.Thinking, s.stats.Rejected, s.stats.NoAnswer,
+		"Обработано %d (старых %d, новых %d)\nЗаписано %d (в резерв %d)\nДумают %d\nНе подходят %d\nНе дозвонился %d",
+		total, s.state.ProcessedOld, s.state.ProcessedNew,
+		s.state.Recorded, s.state.Reserved,
+		s.state.Thinking, s.state.Rejected, s.state.NoAnswer,
 	)
 }
 
-func (s *StatsService) AddOld()      { s.stats.ProcessedOld++; s.history = append(s.history, "old") }
-func (s *StatsService) AddNew()      { s.stats.ProcessedNew++; s.history = append(s.history, "new") }
-func (s *StatsService) AddRecorded() { s.stats.Recorded++; s.history = append(s.history, "recorded") }
-func (s *StatsService) AddThinking() { s.stats.Thinking++; s.history = append(s.history, "thinking") }
-func (s *StatsService) AddRejected() { s.stats.Rejected++; s.history = append(s.history, "rejected") }
-func (s *StatsService) AddNoAnswer() { s.stats.NoAnswer++; s.history = append(s.history, "noanswer") }
+// saveState - вспомогательная функция для сохранения после каждого чиха
+func (s *StatsService) saveState() {
+	_ = s.storage.Save(s.state)
+}
+
+func (s *StatsService) AddOld() {
+	s.state.ProcessedOld++
+	s.history = append(s.history, models.ActionOld)
+	s.saveState()
+}
+
+func (s *StatsService) AddNew() {
+	s.state.ProcessedNew++
+	s.history = append(s.history, models.ActionNew)
+	s.saveState()
+}
+
+func (s *StatsService) AddRecorded() {
+	s.state.Recorded++
+	s.history = append(s.history, models.ActionRecorded)
+	s.saveState()
+}
+
+func (s *StatsService) AddReserved() {
+	s.state.Reserved++
+	s.state.Recorded++
+	s.history = append(s.history, models.ActionReserved)
+	s.saveState()
+}
+
+func (s *StatsService) AddThinking() {
+	s.state.Thinking++
+	s.history = append(s.history, models.ActionThinking)
+	s.saveState()
+}
+
+func (s *StatsService) AddRejected() {
+	s.state.Rejected++
+	s.history = append(s.history, models.ActionRejected)
+	s.saveState()
+}
+
+func (s *StatsService) AddNoAnswer() {
+	s.state.NoAnswer++
+	s.history = append(s.history, models.ActionNoAnswer)
+	s.saveState()
+}
 
 func (s *StatsService) UndoLast() {
 	if len(s.history) == 0 {
@@ -47,28 +90,31 @@ func (s *StatsService) UndoLast() {
 	s.history = s.history[:len(s.history)-1]
 
 	switch last {
-	case "old":
-		s.stats.ProcessedOld--
-	case "new":
-		s.stats.ProcessedNew--
-	case "recorded":
-		s.stats.Recorded--
-	case "thinking":
-		s.stats.Thinking--
-	case "rejected":
-		s.stats.Rejected--
-	case "noanswer":
-		s.stats.NoAnswer--
+	case models.ActionOld:
+		s.state.ProcessedOld--
+	case models.ActionNew:
+		s.state.ProcessedNew--
+	case models.ActionRecorded:
+		s.state.Recorded--
+	case models.ActionReserved:
+		s.state.Reserved--
+	case models.ActionThinking:
+		s.state.Thinking--
+	case models.ActionRejected:
+		s.state.Rejected--
+	case models.ActionNoAnswer:
+		s.state.NoAnswer--
 	}
+	s.saveState()
 }
 
 func (s *StatsService) Reset() {
-	s.stats = Stats{}
+	s.state = models.State{}
 	s.history = nil
-	os.Remove("state.json")
+	_ = s.storage.Reset()
 }
 
-func (s *StatsService) SaveReport() error {
+func (s *StatsService) SaveReportToFile() error {
 	data := s.GetStatsText()
 	return os.WriteFile("report.txt", []byte(data), 0644)
 }
