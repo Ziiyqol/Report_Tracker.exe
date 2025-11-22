@@ -7,6 +7,7 @@ on:
 jobs:
   # ------------------------------------------------------------------
   # JOB 1: Сборка для Windows
+  # Используем fyne-cross, указывая пакет 'cmd' как аргумент.
   # ------------------------------------------------------------------
   build_windows:
     name: 🔨 Build Windows (x64)
@@ -25,13 +26,14 @@ jobs:
       - name: Build Windows Binary
         run: |
           fyne-cross windows -arch amd64 \
-            -workdir cmd \  # <--- ИСПРАВЛЕНИЕ: Используем -workdir для указания папки main
-            --icon cmd/icon.png \
+            --icon cmd/icon.png \ # Иконка из корня/cmd/icon.png
             --app-id com.report.tracker \
             --name ReportTracker \
-            --output ReportTracker
+            --output ReportTracker \
+            ./cmd  # <--- ФИНАЛЬНОЕ ИСПРАВЛЕНИЕ: Указываем пакет ./cmd
       - name: Prepare Artifact
         run: |
+          # fyne-cross сохраняет выходной файл в подпапке
           mv fyne-cross/bin/windows-amd64/ReportTracker.exe ReportTracker_Windows_x64.exe
       - name: Upload Release Asset
         uses: softprops/action-gh-release@v1
@@ -40,6 +42,7 @@ jobs:
 
   # ------------------------------------------------------------------
   # JOB 2: Сборка для macOS (Intel и M1/ARM64)
+  # Используем нативный Fyne CLI.
   # ------------------------------------------------------------------
   build_macos:
     name: 🍎 Build macOS (Intel & M1)
@@ -60,8 +63,8 @@ jobs:
           export CGO_ENABLED=1
           export GOOS=darwin
           export GOARCH=amd64
-          # ИСПРАВЛЕНИЕ: Используем --sourceDir cmd
-          $HOME/go/bin/fyne package -os darwin --sourceDir cmd -icon cmd/icon.png --appID com.report.tracker --name ReportTracker
+          # ИСПРАВЛЕНИЕ: Указываем --sourceDir cmd Иконку указываем относительно корня.
+          $HOME/go/bin/fyne package -os darwin --sourceDir cmd --icon cmd/icon.png --appID com.report.tracker --name ReportTracker
           mv ReportTracker.app ReportTracker_Intel.app
           tar -czf ReportTracker_macOS_Intel.tar.gz ReportTracker_Intel.app
 
@@ -71,8 +74,8 @@ jobs:
           export CGO_ENABLED=1
           export GOOS=darwin
           export GOARCH=arm64
-          # ИСПРАВЛЕНИЕ: Используем --sourceDir cmd
-          $HOME/go/bin/fyne package -os darwin --sourceDir cmd -icon cmd/icon.png --appID com.report.tracker --name ReportTracker
+          # ИСПРАВЛЕНИЕ: Указываем --sourceDir cmd Иконку указываем относительно корня.
+          $HOME/go/bin/fyne package -os darwin --sourceDir cmd --icon cmd/icon.png --appID com.report.tracker --name ReportTracker
           mv ReportTracker.app ReportTracker_M1.app
           tar -czf ReportTracker_macOS_M1.tar.gz ReportTracker_M1.app
 
